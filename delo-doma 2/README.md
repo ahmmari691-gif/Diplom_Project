@@ -41,7 +41,7 @@ To create your own administrator account:
 python manage.py createsuperuser
 ```
 
-Django administration is available at http://127.0.0.1:8000/admin/. Platform managers use an invitation issued by a platform administrator.
+Django administration is available at http://127.0.0.1:8000/django-admin/. Platform managers use an invitation issued by a platform administrator.
 
 ## Optional Gemini configuration
 
@@ -70,3 +70,10 @@ python manage.py test
 ## Deployment
 
 `run.py` starts the local development server. Public deployment requires production configuration, a WSGI server such as Gunicorn (`config.wsgi:application`), HTTPS, private secrets, database and backup configuration, allowed hosts, CSRF origins and collected static files. GitHub stores the source code; GitHub Pages alone cannot run the Django backend.
+
+
+## Render deployment
+
+The repository root render.yaml deploys this subdirectory using Docker and PostgreSQL. In Render select New > Blueprint and connect the repository. Both services select Free. This is a temporary preview: the free database expires after 30 days and the web service sleeps when idle. Review plans before deploying.
+
+Render generates independent server secrets. Keep DATA_ENCRYPTION_SECRET unchanged while using the same database. No local customer data or API credentials are migrated. The first release uses local assistance; Gemini can be configured separately through private environment variables. Administrator creation uses `python manage.py createsuperuser` from a trusted deployment environment. The Django admin URL is `/django-admin/`.

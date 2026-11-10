@@ -1,5 +1,6 @@
 """Local development by default. Production must supply independent secrets."""
 import base64
+import hashlib
 import os
 import secrets
 from pathlib import Path
@@ -36,6 +37,11 @@ def local_secret(filename, size):
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 DATA_ENCRYPTION_KEY = os.getenv('DATA_ENCRYPTION_KEY')
+# Render supplies a persistent random seed; derive the 32-byte Fernet key.
+if not DATA_ENCRYPTION_KEY and os.getenv('DATA_ENCRYPTION_SECRET'):
+    DATA_ENCRYPTION_KEY = base64.urlsafe_b64encode(
+        hashlib.sha256(os.environ['DATA_ENCRYPTION_SECRET'].encode()).digest()
+    ).decode()
 if DEBUG:
     SECRET_KEY = SECRET_KEY or local_secret('django-secret', 48)
     DATA_ENCRYPTION_KEY = DATA_ENCRYPTION_KEY or local_secret('encryption.key', 32)
@@ -49,6 +55,15 @@ except Exception:
 
 ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,[::1]').split(',')
 CSRF_TRUSTED_ORIGINS = [v for v in os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if v]
+if os.getenv('RENDER') == 'true':
+    render_host = os.getenv('RENDER_EXTERNAL_HOSTNAME')
+    if render_host:
+        ALLOWED_HOSTS.append(render_host)
+        CSRF_TRUSTED_ORIGINS.append('https://' + render_host)
+    # Render terminates HTTPS and sets the forwarded protocol header.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    if not DEBUG and not os.getenv('DATABASE_URL'):
+        raise ImproperlyConfigured('Render deployment requires a persistent PostgreSQL DATABASE_URL.')
 INSTALLED_APPS = [
     'django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes',
     'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles', 'core',
