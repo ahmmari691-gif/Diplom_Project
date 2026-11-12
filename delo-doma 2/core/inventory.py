@@ -1,6 +1,7 @@
 import re
 from decimal import Decimal
 from django.db import transaction
+from django.conf import settings
 from .models import Consumption, RecipeLine, StockItem, StockMovement
 from .security import audit, clean, decimal, fail, ms, owned_business
 from .serializers import order_payload, order_reference
@@ -42,6 +43,8 @@ def consume(b, lines, reference, note):
         StockMovement.objects.create(item=item, delta=-qty, balance=item.stock, reference=reference, note=clean(note, 200))
 
 def consume_order(b, order):
+    if not settings.INVENTORY_ENABLED:
+        return
     data = order_payload(order)
     product = b.products.filter(name=data['product']).first()
     if product:
@@ -51,6 +54,8 @@ def consume_order(b, order):
             audit(None, 'inventory.order_consumed', b, {'order': str(order.pk)})
 
 def inventory_route(request, v):
+    if not settings.INVENTORY_ENABLED:
+        fail('Страница не найдена.', 404)
     if request.method == 'GET':
         return inventory_data(owned_business(request))
     with transaction.atomic():

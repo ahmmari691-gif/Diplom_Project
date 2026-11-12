@@ -47,6 +47,7 @@ def api(request, route):
             fail('Метод не поддерживается.', 405)
         if route == 'me':
             result = {'user': user_data(current_user(request)), 'localPreview': False,
+                      'features': {'inventory': settings.INVENTORY_ENABLED},
                       'aiMode': settings.AI_MODE, 'aiProvider': 'gemini' if settings.AI_MODE == 'gemini' else 'openai',
                       'aiProviderName': 'Google Gemini' if settings.AI_MODE == 'gemini' else 'OpenAI',
                       'backend': 'Django', 'disclaimer': SELLER_NOTICE}

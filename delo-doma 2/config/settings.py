@@ -19,6 +19,8 @@ if env_file.exists():
 
 DEBUG = os.getenv('DJANGO_DEBUG', '1') == '1'
 DEMO_MODE = os.getenv('DELO_DEMO', '0') == '1'
+# Temporary feature switch; existing inventory records are preserved.
+INVENTORY_ENABLED = os.getenv('DELO_INVENTORY_ENABLED', '0') == '1'
 AI_MODE = os.getenv('DELO_AI_MODE', 'local')
 if DEMO_MODE and not DEBUG:
     raise ImproperlyConfigured('Demo role switching is forbidden outside DEBUG.')
