@@ -11,7 +11,7 @@ Educational project for the course Business Analysis, Astana IT University. Not 
 
 **GitHub Repository:** https://github.com/ahmmari691-gif/Diplom_Project
 
-**Demonstration Video:** [INSERT UNIVERSITY ONEDRIVE LINK]
+**Demonstration Video:** [https://astanait-my.sharepoint.com/personal/241274_astanait_edu_kz/_layouts/15/stream.aspx?id=%2Fpersonal%2F241274%5Fastanait%5Fedu%5Fkz%2FDocuments%2FTeam01%5FFP%5FDemo%2Emp4&nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJPbmVEcml2ZUZvckJ1c2luZXNzIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXciLCJyZWZlcnJhbFZpZXciOiJNeUZpbGVzTGlua0NvcHkifX0&share=cQobPea%5Fbt8jRak%2DEvdg%5Fo5%2DEgUCfRCJ8Bd%5F54tF%5F8YfZB5n1Q&CID=3c3d202e%2D3b01%2D4a5c%2D8bd9%2D9a09a8c3b619&referrer=StreamWebApp%2EWeb&referrerScenario=AddressBarCopied%2Eview%2E037475fa%2D574f%2D4b31%2D8c0b%2D64c3d09d2ff2]
 
 ---
 
