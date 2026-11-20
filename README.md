@@ -304,9 +304,9 @@ Complete this table using the actual fictional test accounts prepared for assess
 
 | User Role | Demo Email | Demo Password |
 |---|---|---|
-| Business Owner | [ADD TEST EMAIL] | [ADD TEST PASSWORD] |
-| Platform Administrator | [ADD TEST EMAIL] | [ADD TEST PASSWORD] |
-| Platform Manager | [ADD TEST EMAIL] | [ADD TEST PASSWORD] |
+| Business Owner | business@demo.local | Study-Business-2026 |
+| Platform Manager | manager@demo.local | Study-Manager-2026 |
+| Platform Administrator | admin@demo.local | Study-Admin-2026 |
 | Customer | No account required | Private tracking token |
 
 **Account preparation:**
