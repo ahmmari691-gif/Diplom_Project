@@ -11,7 +11,8 @@ Educational project for the course Business Analysis, Astana IT University. Not 
 
 **GitHub Repository:** https://github.com/ahmmari691-gif/Diplom_Project
 
-**Demonstration Video:** 
+**Demonstration Video:** [INSERT UNIVERSITY ONEDRIVE LINK]
+
 ---
 
 ## 1. Project Overview
@@ -624,6 +625,11 @@ Google Gemini is an external AI service rather than a component owned by the pro
 
 Delo Doma was developed as an educational prototype for the Business Analysis course at Astana IT University.
 
+The project demonstrates requirements specification, software design, implementation, requirements traceability, and validation.
+
+It is not a commercial product or a service offered to real customers.
+
+All demonstration and testing activities must follow the university's project ethics, privacy, and safety requirements.
 The project demonstrates requirements specification, software design, implementation, requirements traceability, and validation.
 
 It is not a commercial product or a service offered to real customers.
