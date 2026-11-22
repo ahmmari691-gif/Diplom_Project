@@ -94,7 +94,7 @@ def platform_route(request, v):
             'sources': [{'name': k, 'count': n} for k, n in sources.items()],
             'campaigns': [campaign_data(c) for c in Campaign.objects.filter(business__isnull=True).order_by('-created')],
             'tasks': [task_data(t) for t in PlatformTask.objects.order_by('-created')],
-            'privacy': 'Здесь только агрегаты площадки. Профили бизнесов и документы доступны в отдельном разделе. Частные заказы и контакты покупателей недоступны.'}
+            'privacy': 'Здесь только агрегаты площадки. Менеджеру недоступны профили и документы отдельных бизнесов. Частные заказы и контакты покупателей недоступны.'}
 
 def admin_route(request, v):
     user = require_role(request, 'admin')
@@ -199,8 +199,8 @@ def events_route(request, v):
 
 
 def operations_route(request, v):
-    """Platform manager/admin maintain public business profiles, not customer orders."""
-    user = require_role(request, 'manager', 'admin')
+    """Platform administrators maintain public business profiles, not customer orders."""
+    user = require_role(request, 'admin')
     if request.method == 'GET':
         return {'businesses': [{'id': b.pk, 'name': b.name, 'category': b.category,
                 'description': b.description, 'status': b.status,
@@ -235,7 +235,7 @@ def operations_route(request, v):
 
 
 def platform_knowledge_route(request, v):
-    require_role(request, 'manager', 'admin')
+    require_role(request, 'admin')
     key = request.GET.get('business') if request.method == 'GET' else v.get('business')
     b = Business.objects.filter(pk=clean(key, 32)).first()
     if not b:

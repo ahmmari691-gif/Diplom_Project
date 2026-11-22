@@ -56,26 +56,26 @@ No direct order-to-product FK was added: the confirmed reference diagram also st
 | Operation / entity | Guest buyer | Business owner | Platform manager | Administrator |
 |---|---|---|---|---|
 | Public catalogue / products | Read published, available items | Maintain own catalogue | Read public catalogue | Read public catalogue |
-| Business profile | Read public fields | Maintain own | Edit public profile of any business | Same as manager |
+| Business profile | Read public fields | Maintain own | No access to business profiles | Edit public profile of any business |
 | Business availability | — | — | Cannot suspend/resume | Suspend/resume with reason and audit |
 | Order / consent | Create; track/cancel with private token | Read/manage own business orders | No private order access | No private order access |
-| Knowledge documents | No direct file access | Upload, preview, activate, delete own; import products | Upload, preview, activate, delete for any business | Same as manager |
+| Knowledge documents | No direct file access | Upload, preview, activate, delete own; import products | No document access | Upload, preview, activate, delete for any business |
 | AI provider consent | Separate message/order consent | Grant/revoke for own business | Cannot change owner's consent | Cannot change owner's consent |
 | Manager invitation/access | — | — | Cannot invite/revoke | Invite and revoke manager sessions |
 | Audit log | — | Own business events | Writes own operation events, no global audit reader | Read platform events |
 | Campaign / platform task | — | Own business campaigns | Platform campaigns and tasks | Same as manager |
 | Analytics | — | Own business | Platform aggregates | Platform aggregates |
 
-Manager document access is an intentional change from the previous README, authorized by the clarified requirements.
+Managers have only aggregate statistics, platform campaigns and tasks, as specified in the README. Business profile and document endpoints are administrator-only.
 It does not grant private order access, the ability to change owner consent, or the ability to import/change product prices from documents.
 Document upload sanitization, size/format validation and confirmation of permitted columns continue to apply.
 
 Endpoints:
 
-- `GET /api/operations`: business registry for manager/admin.
-- `POST /api/operations`, `action=update_business`: public profile fields only; explicit `businessLanguage` is separate from the interface `language` field.
-- `GET /api/platform_knowledge?business=...&id=...`: list/preview documents.
-- `POST /api/platform_knowledge`: `upload`, `activate`, `delete` for the selected business.
+- `GET /api/operations`: business registry for administrators only.
+- `POST /api/operations`, `action=update_business`: administrator-only public profile fields; explicit `businessLanguage` is separate from the interface `language` field.
+- `GET /api/platform_knowledge?business=...&id=...`: administrator-only list/preview documents.
+- `POST /api/platform_knowledge`: administrator-only `upload`, `activate`, `delete` for the selected business.
 - Existing `/api/admin` and `/api/staff` remain administrator-only.
 
 ## Fresh test database required
@@ -106,11 +106,11 @@ The nested historical copy is not changed and must not be used for this schema.
 
 ## Validation
 
-- Django regression suite: 63 tests pass on SQLite, including nine new ERD/permission and startup-guard tests.
+- Django regression suite: 64 tests pass on SQLite, including ten new ERD/permission and startup-guard tests.
 - Fresh initial migration applies successfully; `makemigrations --check --dry-run` reports no changes.
 - `manage.py check` passes after the frontend build.
 - Vite production build passes (existing bundle-size advisory remains).
-- Browser smoke test: manager login, business selection, profile save and document preview work in the new section.
+- Browser smoke test of the shared operations component passed before restricting it to administrators. Updated manager restrictions are covered by API regression tests and the production build.
 - Live PostgreSQL/Render deployment has not been tested or performed.
 
 To regenerate text sources: `python docs/erd/generate.py` from the repository root with Django dependencies available.

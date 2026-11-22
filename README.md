@@ -48,8 +48,8 @@ The system defines four user classes.
 |---|---|
 | Customer | Browses public catalogues, submits orders, and tracks requests using private links. |
 | Business Owner | Manages business information, products, reference files, and orders belonging to their business. |
-| Platform Administrator | Has manager capabilities; additionally suspends/resumes businesses, invites/revokes managers, and reads platform audit events. |
-| Platform Manager | Maintains public business profiles and reference documents; accesses aggregate statistics, campaigns, and tasks. |
+| Platform Administrator | Accesses platform statistics, campaigns and tasks; maintains business profiles/documents, suspends/resumes businesses, invites/revokes managers, and reads platform audit events. |
+| Platform Manager | Accesses aggregate statistics, campaigns, and tasks within assigned permissions. |
 
 Role-based permissions are enforced by the backend.
 

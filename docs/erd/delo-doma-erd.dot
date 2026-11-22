@@ -56,10 +56,9 @@ subgraph cluster_roles { label="ACCOUNT roles — access rules, not additional t
 Manager [shape=box, style="rounded,filled,dashed", fillcolor="#e9f3ef", label="PLATFORM MANAGER
 ACCOUNT.role = manager
 name · email · active access
-Edits business profiles
-Uploads / reviews / activates / deletes documents
-Statistics · campaigns · tasks
-No customer order contents · no business suspension"];
+Aggregate statistics · campaigns · tasks
+No business profiles or documents
+No private orders · no business suspension"];
 Administrator [shape=box, style="rounded,filled,dashed", fillcolor="#fff0d7", label="PLATFORM ADMINISTRATOR
 ACCOUNT.role = admin
 name · email · active account
@@ -69,8 +68,10 @@ Invites / revokes managers
 Reads platform audit log
 No customer order contents"];
 }
-Manager -> Business [style=dashed, color="#238577", label="edit profile", constraint=false];
-Manager -> KnowledgeDocument [style=dashed, color="#238577", label="manage documents", constraint=false];
+PlatformOperations [shape=box, style="rounded,filled", fillcolor="#e9f3ef", label="Aggregate statistics
+CAMPAIGN (platform only)
+PLATFORM_TASK"];
+Manager -> PlatformOperations [style=dashed, color="#238577", label="view / manage"];
 Administrator -> Business [style=dashed, color="#b77924", label="edit / suspend / resume", constraint=false];
 Administrator -> KnowledgeDocument [style=dashed, color="#b77924", label="manage documents", constraint=false];
 Administrator -> Invitation [style=dashed, color="#b77924", label="invite manager", constraint=false];

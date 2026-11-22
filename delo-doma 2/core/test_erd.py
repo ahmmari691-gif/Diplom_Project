@@ -66,8 +66,8 @@ class ERDTests(TestCase):
         audit=order.audit_events.get(action='order.status_changed',actor_account=self.owner)
         self.assertEqual(audit.order,order)
 
-    def test_manager_and_admin_manage_profiles_but_only_admin_pauses_business(self):
-        for client in (self.staff,self.admin_client):
+    def test_only_admin_manages_business_profiles(self):
+        for client in (self.admin_client,):
             self.assertEqual(client.get('/api/operations').status_code,200)
             self.assertEqual(self.post('operations',{'action':'update_business','business':self.business.pk,'name':'Обновлено'},client).status_code,200)
         self.assertEqual(self.owner_client.get('/api/operations').status_code,403)
@@ -78,25 +78,25 @@ class ERDTests(TestCase):
         self.assertEqual(self.post('admin',pause,self.admin_client).status_code,200)
         self.business.refresh_from_db(); self.assertEqual(self.business.status,'paused')
         self.manager.platform_active=False;self.manager.save()
-        self.assertEqual(self.staff.get('/api/operations').status_code,401)
+        self.assertEqual(self.staff.get('/api/platform').status_code,401)
 
     def test_staff_document_workflow_and_owner_isolation(self):
         upload={'action':'upload','business':self.business.pk,'name':'faq.txt','rightsConfirmed':True,
                 'base64':base64.b64encode('Вопрос | Ответ\nДоставка | Самовывоз'.encode()).decode()}
-        r=self.post('platform_knowledge',upload,self.staff)
+        r=self.post('platform_knowledge',upload,self.admin_client)
         self.assertEqual(r.status_code,200,r.content)
         doc=KnowledgeDocument.objects.get(pk=r.json()['id'])
-        self.assertEqual(doc.uploaded_by,self.manager)
+        self.assertEqual(doc.uploaded_by,self.admin)
         route='/api/platform_knowledge?business='+self.business.pk+'&id='+str(doc.pk)
-        self.assertEqual(self.staff.get(route).status_code,200)
+        self.assertEqual(self.admin_client.get(route).status_code,200)
         self.assertEqual(self.guest.get(route).status_code,401)
         self.assertEqual(self.owner_client.get(route).status_code,403)
-        self.assertEqual(self.post('platform_knowledge',{'action':'import_catalog','business':self.business.pk,'id':str(doc.pk)},self.staff).status_code,403)
+        self.assertEqual(self.post('platform_knowledge',{'action':'import_catalog','business':self.business.pk,'id':str(doc.pk)},self.admin_client).status_code,403)
         activate={'action':'activate','business':self.business.pk,'id':str(doc.pk),'confirmed':True,'columns':doc.columns}
         self.assertEqual(self.post('platform_knowledge',activate,self.admin_client).status_code,200)
         doc.refresh_from_db();self.assertEqual(doc.reviewed_by,self.admin);self.assertIsNotNone(doc.reviewed_at)
         self.assertEqual(doc.status,'active')
-        self.assertEqual(self.post('platform_knowledge',{'action':'delete','business':self.business.pk,'id':str(doc.pk)},self.staff).status_code,200)
+        self.assertEqual(self.post('platform_knowledge',{'action':'delete','business':self.business.pk,'id':str(doc.pk)},self.admin_client).status_code,200)
         self.assertFalse(KnowledgeDocument.objects.exists())
 
     def test_provider_consent_is_persisted_and_revoked_on_switch(self):
@@ -130,11 +130,11 @@ class ERDTests(TestCase):
 
     def test_interface_language_does_not_overwrite_business_language(self):
         r=self.post('operations',{'action':'update_business','business':self.business.pk,
-            'businessLanguage':'kk','language':'en'},self.staff)
+            'businessLanguage':'kk','language':'en'},self.admin_client)
         self.assertEqual(r.status_code,200,r.content)
         self.business.refresh_from_db();self.assertEqual(self.business.language,'kk')
         r=self.post('operations',{'action':'update_business','business':self.business.pk,
-            'name':'Renamed','language':'ru'},self.staff)
+            'name':'Renamed','language':'ru'},self.admin_client)
         self.assertEqual(r.status_code,200)
         self.business.refresh_from_db();self.assertEqual(self.business.language,'kk')
 
@@ -146,3 +146,18 @@ class ERDTests(TestCase):
             with self.assertRaisesMessage(CommandError,'NEW EMPTY'):
                 call_command('check_schema_baseline')
         self.assertEqual(Account.objects.count(),3)
+
+    def test_manager_cannot_read_or_modify_businesses_or_documents(self):
+        for route in ('operations', 'platform_knowledge?business='+self.business.pk,
+                      'admin', 'staff', 'data', 'knowledge', 'analytics', 'security'):
+            self.assertEqual(self.staff.get('/api/'+route).status_code,403,route)
+        for action in ('upload','activate','delete','import_catalog'):
+            self.assertEqual(self.post('platform_knowledge',{'action':action,'business':self.business.pk},self.staff).status_code,403)
+        self.assertEqual(self.post('operations',{'action':'update_business','business':self.business.pk,'name':'Forbidden'},self.staff).status_code,403)
+        self.business.refresh_from_db();self.assertEqual(self.business.name,'Бизнес')
+        summary=self.staff.get('/api/platform')
+        self.assertEqual(summary.status_code,200)
+        self.assertNotIn('businesses',summary.json())
+        self.assertNotIn('documents',summary.json())
+        self.assertEqual(self.post('platform',{'action':'task','title':'Platform task'},self.staff).status_code,200)
+        self.assertEqual(self.post('platform',{'action':'campaign','name':'Campaign','source':'direct','cost':0},self.staff).status_code,200)

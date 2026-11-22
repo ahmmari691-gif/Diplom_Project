@@ -66,10 +66,11 @@ for m in models:
         cardinality=('0..1' if f.null else '1')+' : '+('0..1' if f.one_to_one else '0..N')
         dot.append(f'{parent} -> {m.__name__} [dir=both, arrowtail="{ "teeodot" if f.null else "teetee"}", arrowhead="{ "teeodot" if f.one_to_one else "crowodot"}", label="{f.column}\n{cardinality}"];')
 dot+=['subgraph cluster_roles { label="ACCOUNT roles — access rules, not additional tables"; color="#c4b5a0"; style="rounded,dashed";',
-'Manager [shape=box, style="rounded,filled,dashed", fillcolor="#e9f3ef", label="PLATFORM MANAGER\nACCOUNT.role = manager\nname · email · active access\nEdits business profiles\nUploads / reviews / activates / deletes documents\nStatistics · campaigns · tasks\nNo customer order contents · no business suspension"];',
+'Manager [shape=box, style="rounded,filled,dashed", fillcolor="#e9f3ef", label="PLATFORM MANAGER\nACCOUNT.role = manager\nname · email · active access\nAggregate statistics · campaigns · tasks\nNo business profiles or documents\nNo private orders · no business suspension"];',
 'Administrator [shape=box, style="rounded,filled,dashed", fillcolor="#fff0d7", label="PLATFORM ADMINISTRATOR\nACCOUNT.role = admin\nname · email · active account\nAll manager operations\nSuspends / resumes businesses\nInvites / revokes managers\nReads platform audit log\nNo customer order contents"];','}',
-'Manager -> Business [style=dashed, color="#238577", label="edit profile", constraint=false];',
-'Manager -> KnowledgeDocument [style=dashed, color="#238577", label="manage documents", constraint=false];',
+'PlatformOperations [shape=box, style="rounded,filled", fillcolor="#e9f3ef", label="Aggregate statistics\nCAMPAIGN (platform only)\nPLATFORM_TASK"];',
+'Manager -> PlatformOperations [style=dashed, color="#238577", label="view / manage"];',
+
 'Administrator -> Business [style=dashed, color="#b77924", label="edit / suspend / resume", constraint=false];',
 'Administrator -> KnowledgeDocument [style=dashed, color="#b77924", label="manage documents", constraint=false];',
 'Administrator -> Invitation [style=dashed, color="#b77924", label="invite manager", constraint=false];',
@@ -84,11 +85,10 @@ dot+=['subgraph cluster_roles { label="ACCOUNT roles — access rules, not addit
   Business -->|получает и выполняет| Order
   Owner -->|ведёт| Catalogue["CATALOGUE → PRODUCT"]
   Owner -->|загружает и активирует| Docs["KNOWLEDGE_DOCUMENT"]
-  Manager["ACCOUNT.role = manager<br/>Менеджер платформы"] -->|редактирует профиль| Business
-  Manager -->|загружает, проверяет, активирует, удаляет| Docs
-  Manager -->|просматривает / ведёт| Ops["Статистика · CAMPAIGN · PLATFORM_TASK"]
+  Manager["ACCOUNT.role = manager<br/>Менеджер платформы"] -->|просматривает / ведёт| Ops["Статистика · CAMPAIGN · PLATFORM_TASK"]
   Admin["ACCOUNT.role = admin<br/>Администратор"] -->|все полномочия менеджера| Manager
-  Admin -->|приостанавливает / возобновляет| Business
+  Admin -->|редактирует / приостанавливает / возобновляет| Business
+  Admin -->|управляет документами| Docs
   Admin -->|создаёт| Invite["INVITATION · приглашение менеджера"]
   Admin -->|отзывает доступ| Staff["ACCOUNT · аккаунт менеджера"]
   Admin -->|просматривает| Audit["AUDIT_LOG · журнал действий"]
