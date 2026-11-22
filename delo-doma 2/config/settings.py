@@ -94,7 +94,7 @@ if os.getenv('DATABASE_URL'):
                            'USER': unquote(db.username or ''), 'PASSWORD': unquote(db.password or ''),
                            'HOST': db.hostname, 'PORT': db.port or 5432, 'CONN_MAX_AGE': 60,
                            'OPTIONS': {'sslmode': os.getenv('DB_SSLMODE', 'require')}}
-AUTH_USER_MODEL = 'core.User'
+AUTH_USER_MODEL = 'core.Account'
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}},

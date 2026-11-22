@@ -48,14 +48,25 @@ The system defines four user classes.
 |---|---|
 | Customer | Browses public catalogues, submits orders, and tracks requests using private links. |
 | Business Owner | Manages business information, products, reference files, and orders belonging to their business. |
-| Platform Administrator | Manages platform access, manager invitations, and business availability. |
-| Platform Manager | Accesses aggregate statistics, campaigns, and tasks within assigned permissions. |
+| Platform Administrator | Has manager capabilities; additionally suspends/resumes businesses, invites/revokes managers, and reads platform audit events. |
+| Platform Manager | Maintains public business profiles and reference documents; accesses aggregate statistics, campaigns, and tasks. |
 
 Role-based permissions are enforced by the backend.
 
 Business owners cannot access protected orders belonging to other businesses. Platform-level permissions do not automatically grant access to private customer order contents.
 
 Customers do not need a staff account to browse catalogues or track individual orders.
+
+### Updated ERD and test database baseline
+
+The guest buyer (`core.User`) and authenticated owner/staff login (`core.Account`) are separate entities.
+Buyers and businesses are related **only through orders**: `User → Order ← Business`.
+The owner of a business is an `Account`, never the guest buyer.
+
+See [ERD, role permissions and reset instructions](docs/erd/README.md).
+This release intentionally replaces the initial migration for the approved disposable test database.
+It **requires an empty database** and must not be applied over the previous migration history.
+The startup guard rejects the old schema without deleting it.
 
 ## 4. Functional Requirements
 

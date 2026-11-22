@@ -13,7 +13,7 @@ from django.core.management import call_command
 from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 from .models import (AuditLog, Business, Campaign, Consumption, Invitation, KnowledgeDocument,
-                     Order, Product, RateBucket, RecipeLine, StockItem, StockMovement, User)
+                     Order, Product, RateBucket, RecipeLine, StockItem, StockMovement, Account)
 from .security import business_id, digest, seal, unseal
 from .serializers import order_payload
 
@@ -22,17 +22,17 @@ from django.db import close_old_connections
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
-@override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'], DELO_DEMO=False, DEMO_MODE=False, AI_MODE='local')
+@override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'], DELO_DEMO=False, DEMO_MODE=False, INVENTORY_ENABLED=True, AI_MODE='local')
 class PlatformTests(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.owner = User.objects.create_user(username='owner', email='owner@example.com', password='Strong-test-phrase!847', name='Владелец')
-        cls.other = User.objects.create_user(username='other', email='other@example.com', password='Strong-test-phrase!847')
-        cls.manager = User.objects.create_user(username='manager', email='manager@example.com', role='manager', platform_active=True)
-        cls.admin = User.objects.create_user(username='admin', email='admin@example.com', role='admin', is_staff=True, is_superuser=True)
+        cls.owner = Account.objects.create_user(username='owner', email='owner@example.com', password='Strong-test-phrase!847', name='Владелец')
+        cls.other = Account.objects.create_user(username='other', email='other@example.com', password='Strong-test-phrase!847')
+        cls.manager = Account.objects.create_user(username='manager', email='manager@example.com', role='manager', platform_active=True)
+        cls.admin = Account.objects.create_user(username='admin', email='admin@example.com', role='admin', is_staff=True, is_superuser=True)
         cls.business = Business.objects.create(id=business_id(cls.owner), owner=cls.owner, name='Крошка', category='Кондитер', lead_hours=0, pickup_instructions='Частная инструкция')
         cls.other_business = Business.objects.create(id=business_id(cls.other), owner=cls.other, name='Другой бизнес', category='Ателье')
-        cls.product = Product.objects.create(business=cls.business, name='Бенто-торт', price=6500)
+        cls.product = Product.objects.create(catalogue=cls.business.default_catalogue(), name='Бенто-торт', price=6500)
         cls.item = StockItem.objects.create(business=cls.business, name='Клубника', unit='кг', stock=10, minimum=2)
         RecipeLine.objects.create(product=cls.product, item=cls.item, quantity=Decimal('0.5'))
 
@@ -142,7 +142,7 @@ class PlatformTests(TestCase):
 
     def test_first_business_save_persists_across_requests(self):
         client = Client()
-        new_owner = User.objects.create_user(username='newowner', email='newowner@example.com')
+        new_owner = Account.objects.create_user(username='newowner', email='newowner@example.com')
         client.force_login(new_owner)
         data = {'name': 'Школа', 'category': 'Услуги из дома', 'products': [{'name': 'Урок', 'price': 1500}]}
         response = self.post('data', {'action': 'business', 'data': data}, client)
@@ -330,7 +330,7 @@ class PlatformTests(TestCase):
         doc = self.upload().json()
         r = self.post('knowledge', {'action': 'import_catalog', 'id': doc['id'], 'confirmed': True})
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(Product.objects.get(business=self.business, name='Брауни').price, 4500)
+        self.assertEqual(Product.objects.get(catalogue__business=self.business, name='Брауни').price, 4500)
         self.assertEqual(self.product.recipe_lines.count(), 1)
 
     def test_platform_manager_sees_aggregates_without_decryption(self):
@@ -541,12 +541,13 @@ class PlatformTests(TestCase):
         self.assertEqual(payload['text']['format']['type'], 'json_schema')
         self.assertEqual(Order.objects.count(), 0)
 
+@override_settings(INVENTORY_ENABLED=True)
 class ConcurrentStockTests(TransactionTestCase):
     def test_simultaneous_ready_requests_cannot_double_consume(self):
         from .views import api
-        owner = User.objects.create(username='parallel', email='parallel@example.com')
+        owner = Account.objects.create(username='parallel', email='parallel@example.com')
         b = Business.objects.create(id=business_id(owner), owner=owner, name='Параллельный тест')
-        p = Product.objects.create(business=b, name='Торт', price=1000)
+        p = Product.objects.create(catalogue=b.default_catalogue(), name='Торт', price=1000)
         item = StockItem.objects.create(business=b, name='Клубника', unit='кг', stock=10)
         RecipeLine.objects.create(product=p, item=item, quantity=Decimal('0.5'))
         order = Order.objects.create(business=b, status='working', token_hash='x' * 64,
@@ -605,7 +606,7 @@ class ImportTests(TestCase):
                 'data': encrypted({'name': 'Частный клиент', 'phone': 'private-import-contact', 'product': 'Торт', 'qty': 1, 'total': 1000}, 'order:' + bid)})
             with io.StringIO() as output:
                 call_command('import_netlify', source, stdout=output)
-            user = User.objects.get(pk=owner_id)
+            user = Account.objects.get(pk=owner_id)
             self.assertTrue(user.check_password(password))
             self.assertTrue(user.password.startswith('pbkdf2_sha256$'))
             order = Order.objects.get(pk=oid)
@@ -629,9 +630,9 @@ class BusinessExperienceTests(TestCase):
                  ('Другое', 'Описание без специальной терминологии', 'Предложение', 'other')]
         for i, (category, description, name, expected) in enumerate(cases):
             with self.subTest(expected=expected):
-                owner = User.objects.create(username='sector-'+str(i), email='sector-'+str(i)+'@example.com')
+                owner = Account.objects.create(username='sector-'+str(i), email='sector-'+str(i)+'@example.com')
                 b = Business.objects.create(id=business_id(owner), owner=owner, name='Бизнес', category=category, description=description)
-                Product.objects.create(business=b, name=name, price=1000)
+                Product.objects.create(catalogue=b.default_catalogue(), name=name, price=1000)
                 profile = experience(b)
                 self.assertEqual(profile['kind'], expected)
                 self.assertTrue(profile['quickQuestions'])
@@ -664,7 +665,7 @@ class SiteHelpTests(TestCase):
 
     def test_server_determines_role_and_public_page_context(self):
         from unittest.mock import patch
-        user = User.objects.create_user(username='help-owner', role='business')
+        user = Account.objects.create_user(username='help-owner', role='business')
         self.client.force_login(user)
         with patch.dict('os.environ', {'GEMINI_API_KEY':'test-key'}), patch('core.site_help.gemini_request', return_value={'reply':'Answer'}) as model:
             self.assertEqual(self.post(role='admin').status_code, 200)

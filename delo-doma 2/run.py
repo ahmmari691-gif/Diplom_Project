@@ -27,6 +27,7 @@ if not 1024 <= args.port <= 65535:
     parser.error('Порт должен быть от 1024 до 65535.')
 def manage(*commands):
     subprocess.run([sys.executable, 'manage.py', *commands], check=True)
+manage('check_schema_baseline')
 manage('migrate', '--noinput')
 if args.demo:
     manage('seed_demo')

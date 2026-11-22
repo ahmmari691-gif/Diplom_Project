@@ -11,7 +11,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
-from .models import AuditLog, Business, RateBucket
+from .models import AuditLog, Business, RateBucket, Order
 
 SELLER_NOTICE = 'За качество товаров и услуг, безопасность и соответствие описанию отвечает продавец — владелец бизнеса, а не платформа «Дело дома». Платформа помогает оформить и отслеживать заявку.'
 
@@ -80,7 +80,9 @@ def owned_business(request, lock=False):
     return business
 
 def audit(user, action, business=None, details=None):
-    AuditLog.objects.create(actor=digest(user.pk if user else 'anonymous')[:12],
+    order_id = (details or {}).get('order')
+    order = Order.objects.filter(pk=order_id, business_id=getattr(business, 'pk', business)).first() if order_id else None
+    AuditLog.objects.create(actor_account=user, order=order, actor=digest(user.pk if user else 'anonymous')[:12],
                             role=('admin' if user.is_superuser else user.role) if user else 'client',
                             action=action, business_id=getattr(business, 'pk', business), details=details or {})
 

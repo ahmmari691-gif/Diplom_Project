@@ -3,7 +3,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
-from core.models import Business, KnowledgeDocument, Order, Product, RecipeLine, StockItem, StockMovement, User
+from core.models import Business, KnowledgeDocument, Order, Product, RecipeLine, StockItem, StockMovement, Account
 from core.security import business_id, digest, seal
 
 class Command(BaseCommand):
@@ -12,11 +12,11 @@ class Command(BaseCommand):
     def handle(self, **options):
         if not settings.DEBUG:
             raise CommandError('Демо запрещено в production.')
-        if User.objects.filter(email='alina@preview.local').exists():
+        if Account.objects.filter(email='alina@preview.local').exists():
             self.stdout.write('Демо уже существует; данные не изменены.')
             return
         for email, name, role in [('alina@preview.local', 'Алина', 'business'), ('dana@preview.local', 'Дана', 'manager'), ('admin@preview.local', 'Администратор', 'admin')]:
-            u = User(email=email, username=email, name=name, role=role, platform_active=role == 'manager', is_staff=role == 'admin', is_superuser=role == 'admin')
+            u = Account(email=email, username=email, name=name, role=role, platform_active=role == 'manager', is_staff=role == 'admin', is_superuser=role == 'admin')
             u.set_unusable_password()
             u.save()
             if role == 'business':
@@ -27,13 +27,13 @@ class Command(BaseCommand):
         products = []
         for name, price, desc in [('Бенто-торт «Маленький праздник»', 6500, 'Ванильный бисквит, крем-чиз и ваша надпись. 450 г.'),
                                   ('Клубника в шоколаде', 8500, 'Набор 12 штук.'), ('Капкейки «Облака»', 7200, 'Шесть капкейков с ягодной начинкой.')]:
-            products.append(Product.objects.create(business=b, name=name, price=price, description=desc))
+            products.append(Product.objects.create(catalogue=b.default_catalogue(), name=name, price=price, description=desc))
         item = StockItem.objects.create(business=b, name='Клубника', unit='кг', stock=10, minimum=2)
         StockMovement.objects.create(item=item, delta=10, balance=10, note='Начальный остаток')
         RecipeLine.objects.create(product=products[0], item=item, quantity='0.5')
         for i, status in enumerate(['new', 'working', 'ready', 'done']):
             p = products[i % len(products)]
-            Order.objects.create(business=b, status=status, token_hash=digest('demo-' + str(i)),
+            Order.objects.create(business=b, total=p.price, status=status, token_hash=digest('demo-' + str(i)),
                 due=timezone.now() + timedelta(days=3), consents={'privacy': True, 'seller': True},
                 encrypted_data=seal({'name': 'Демонстрационный клиент', 'phone': 'Демо-контакт', 'product': p.name,
                                      'qty': 1, 'total': float(p.price), 'currency': '₸', 'note': ''}, 'order:' + b.pk))

@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from .inventory import consume_order
-from .models import Business, Order, Product
+from .models import Business, Order, Product, OrderStatusHistory
 from .security import SELLER_NOTICE, audit, business_id, clean, decimal, digest, fail, owned_business, rate_limit, require_role, seal
 from .serializers import business_data, document_meta, order_data, order_payload, order_reference
 from .experience import experience, TYPE_NAMES
@@ -59,6 +59,9 @@ def save_business(request, data):
         # Serialize creation for this owner as well as edits of an existing business.
         get_user_model().objects.select_for_update().get(pk=user.pk)
         b, created = Business.objects.get_or_create(owner=user, defaults={'id': business_id(user), 'name': clean(data['name'], 120)})
+        b.ordering_conditions = clean(data.get('orderingConditions', b.ordering_conditions), 3000)
+        b.contact_phone = clean(data.get('contactPhone', b.contact_phone), 100)
+        b.language = data.get('language') if data.get('language') in ('ru', 'kk', 'en') else b.language
         b.name, b.category, b.description = clean(data['name'], 120), clean(data.get('category'), 100), clean(data.get('description'), 3000)
         kind = data.get('businessType', b.business_type)
         if kind not in TYPE_NAMES:
@@ -80,7 +83,7 @@ def save_business(request, data):
         # Existing product IDs/recipes survive edits when the product name is retained.
         b.products.exclude(name__in=names).delete()
         for p in products:
-            Product.objects.update_or_create(business=b, name=p['name'], defaults={k: v for k, v in p.items() if k != 'name'})
+            Product.objects.update_or_create(catalogue=b.default_catalogue(), name=p['name'], defaults={k: v for k, v in p.items() if k != 'name'})
         audit(user, 'business.created' if created else 'business.updated', b)
         return business_data(b)
 
@@ -94,7 +97,7 @@ def create_order(request, v):
             fail('Бизнес не найден.', 404)
         if b.status != 'active':
             fail('Этот бизнес временно не принимает заказы.', 403)
-        p = b.products.filter(name=v.get('product')).first()
+        p = b.products.filter(name=v.get('product'), is_available=True, catalogue__is_published=True).first()
         if not p:
             fail('Выберите товар из каталога.')
         qty, due = int(decimal(v.get('qty'), minimum=1, maximum=1000, integer=True)), parse_date(v.get('due'))
@@ -107,10 +110,10 @@ def create_order(request, v):
         token = secrets.token_hex(32)
         data = {'name': name, 'phone': phone, 'product': p.name, 'qty': qty,
                 'total': float(p.price * qty), 'currency': b.currency, 'note': clean(v.get('note'), 2000)}
-        o = Order.objects.create(business=b, token_hash=digest(token), due=due,
+        o = Order.objects.create(business=b, total=p.price * qty, token_hash=digest(token), due=due,
             channel=v.get('channel') if v.get('channel') in ('instagram', 'telegram', 'whatsapp', 'tiktok', 'facebook', 'direct', 'other') else 'direct',
             campaign=v.get('campaign') if re.fullmatch(r'[a-z0-9_-]{1,80}', str(v.get('campaign', ''))) else '',
-            consents={'privacy': True, 'seller': True, 'marketing': v.get('marketingConsent') is True,
+            consents={'privacy': True, 'seller': True, 'externalAi': v.get('aiConsent') is True, 'marketing': v.get('marketingConsent') is True,
                       'version': '2026-10-21', 'at': int(timezone.now().timestamp() * 1000)},
             encrypted_data=seal(data, 'order:' + b.pk))
         audit(None, 'order.created', b, {'order': str(o.pk)})
@@ -127,6 +130,7 @@ def change_order(request, v):
         # Consistent lock ordering: business first, then order, then stock.
         b = Business.objects.select_for_update().get(pk=initial.business_id)
         o = Order.objects.select_for_update().get(pk=initial.pk)
+        previous_status = o.status
         action = v['action']
         if action == 'cancel':
             check_token(o, v.get('token'))
@@ -151,6 +155,10 @@ def change_order(request, v):
                     consume_order(b, o)
                 o.status = v['status']
         o.save()
+        if o.status != previous_status:
+            OrderStatusHistory.objects.create(order=o, from_status=previous_status, to_status=o.status,
+                customer=o.user if action == 'cancel' else None,
+                changed_by=request.user if action != 'cancel' else None)
         audit(request.user if request.user.is_authenticated else None,
               'order.anonymized' if action == 'anonymize' else 'order.status_changed', b,
               {'order': str(o.pk), 'status': o.status})

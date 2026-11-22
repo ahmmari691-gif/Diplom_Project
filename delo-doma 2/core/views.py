@@ -12,7 +12,7 @@ from .site_help import help_route
 from .inventory import inventory_route
 from .knowledge import knowledge_route
 from .orders import data_route
-from .platform import admin_route, analytics_route, events_route, make_campaign, platform_route, security_route, staff_route
+from .platform import operations_route, platform_knowledge_route, admin_route, analytics_route, events_route, make_campaign, platform_route, security_route, staff_route
 from .security import AppError, SELLER_NOTICE, current_user, fail, owned_business, user_data
 
 logger = logging.getLogger(__name__)
@@ -65,6 +65,10 @@ def api(request, route):
             result = chat_route(request, v)
         elif route == 'platform':
             result = platform_route(request, v)
+        elif route == 'operations':
+            result = operations_route(request, v)
+        elif route == 'platform_knowledge':
+            result = platform_knowledge_route(request, v)
         elif route == 'staff':
             result = staff_route(request, v)
         elif route == 'security':
