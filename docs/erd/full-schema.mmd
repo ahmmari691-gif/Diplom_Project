@@ -1,0 +1,233 @@
+erDiagram
+    ACCOUNT ||--o| BUSINESS : "owner_id / PROTECT"
+    BUSINESS ||--o{ CATALOGUE : "business_id / CASCADE"
+    ACCOUNT ||--o{ CATALOGUE : "created_by_id / PROTECT"
+    CATALOGUE ||--o{ PRODUCT : "catalogue_id / CASCADE"
+    BUSINESS ||--o{ ORDER : "business_id / PROTECT"
+    USER ||--o{ ORDER : "user_id / PROTECT"
+    ORDER ||--o| ORDER_CONSENT : "order_id / CASCADE"
+    ORDER ||--o{ ORDER_STATUS_HISTORY : "order_id / CASCADE"
+    ACCOUNT |o--o{ ORDER_STATUS_HISTORY : "changed_by_id / SET_NULL"
+    USER |o--o{ ORDER_STATUS_HISTORY : "customer_id / SET_NULL"
+    BUSINESS ||--o{ PROVIDER_CONSENT : "business_id / CASCADE"
+    ACCOUNT |o--o{ PROVIDER_CONSENT : "granted_by_id / SET_NULL"
+    BUSINESS ||--o{ STOCK_ITEM : "business_id / CASCADE"
+    PRODUCT ||--o{ RECIPE_LINE : "product_id / CASCADE"
+    STOCK_ITEM ||--o{ RECIPE_LINE : "item_id / PROTECT"
+    BUSINESS ||--o{ CONSUMPTION : "business_id / CASCADE"
+    STOCK_ITEM ||--o{ STOCK_MOVEMENT : "item_id / PROTECT"
+    BUSINESS ||--o{ KNOWLEDGE_DOCUMENT : "business_id / CASCADE"
+    ACCOUNT |o--o{ KNOWLEDGE_DOCUMENT : "uploaded_by_id / SET_NULL"
+    ACCOUNT |o--o{ KNOWLEDGE_DOCUMENT : "reviewed_by_id / SET_NULL"
+    ACCOUNT |o--o{ AUDIT_LOG : "actor_account_id / SET_NULL"
+    ORDER |o--o{ AUDIT_LOG : "order_id / SET_NULL"
+    ACCOUNT |o--o{ INVITATION : "created_by_id / SET_NULL"
+    BUSINESS |o--o{ CAMPAIGN : "business_id / CASCADE"
+    BUSINESS ||--o{ VISIT : "business_id / CASCADE"
+    ACCOUNT ||--o{ SESSION_LINK : "user_id / CASCADE"
+    ACCOUNT {
+        varchar password
+        datetime last_login  "nullable"
+        boolean is_superuser
+        varchar username UK
+        varchar first_name
+        varchar last_name
+        boolean is_staff
+        boolean is_active
+        datetime date_joined
+        uuid id PK
+        varchar email UK
+        varchar role
+        varchar name
+        boolean platform_active
+        json terms
+    }
+    USER {
+        uuid id PK
+        datetime created_at
+    }
+    BUSINESS {
+        varchar id PK
+        uuid owner_id FK,UK
+        varchar name
+        varchar category
+        varchar business_type
+        text description
+        varchar currency
+        decimal average_check
+        varchar pickup_area
+        text pickup_instructions
+        int lead_hours
+        int daily_capacity
+        varchar ai_provider
+        varchar status
+        datetime created
+        datetime updated
+        text ordering_conditions
+        varchar contact_phone
+        varchar language
+    }
+    CATALOGUE {
+        uuid id PK
+        varchar business_id FK
+        uuid created_by_id FK
+        varchar title
+        text description
+        boolean is_published
+        datetime created_at
+    }
+    PRODUCT {
+        uuid id PK
+        uuid catalogue_id FK
+        varchar name
+        decimal price
+        text description
+        varchar category
+        int lead_hours
+        boolean is_available
+    }
+    ORDER {
+        uuid id PK
+        varchar business_id FK
+        varchar status
+        uuid user_id FK
+        varchar reference UK
+        decimal total
+        varchar token_hash
+        datetime due
+        datetime created
+        datetime updated
+        varchar channel
+        varchar campaign
+        text encrypted_data
+        datetime anonymized  "nullable"
+    }
+    ORDER_CONSENT {
+        uuid order_id PK,FK
+        boolean personal_data
+        boolean seller_acknowledged
+        boolean external_ai
+        boolean marketing
+        varchar version
+        datetime accepted_at
+    }
+    ORDER_STATUS_HISTORY {
+        bigint id PK
+        uuid order_id FK
+        varchar from_status
+        varchar to_status
+        uuid changed_by_id FK "nullable"
+        uuid customer_id FK "nullable"
+        datetime changed_at
+    }
+    PROVIDER_CONSENT {
+        bigint id PK
+        varchar business_id FK
+        varchar provider
+        boolean granted
+        datetime granted_at  "nullable"
+        datetime revoked_at  "nullable"
+        uuid granted_by_id FK "nullable"
+    }
+    STOCK_ITEM {
+        uuid id PK
+        varchar business_id FK
+        varchar name
+        varchar unit
+        decimal stock
+        decimal minimum
+    }
+    RECIPE_LINE {
+        bigint id PK
+        uuid product_id FK
+        uuid item_id FK
+        decimal quantity
+    }
+    CONSUMPTION {
+        bigint id PK
+        varchar business_id FK
+        varchar reference
+        datetime created
+    }
+    STOCK_MOVEMENT {
+        uuid id PK
+        uuid item_id FK
+        decimal delta
+        decimal balance
+        varchar note
+        varchar reference
+        datetime created
+    }
+    KNOWLEDGE_DOCUMENT {
+        uuid id PK
+        varchar business_id FK
+        varchar name
+        varchar status
+        datetime created
+        datetime activated  "nullable"
+        int row_count
+        json columns
+        json selected_columns
+        varchar file_type
+        int formula_count
+        json ignored_columns
+        text encrypted_payload
+        uuid uploaded_by_id FK "nullable"
+        uuid reviewed_by_id FK "nullable"
+        datetime reviewed_at  "nullable"
+    }
+    AUDIT_LOG {
+        uuid id PK
+        datetime created
+        varchar actor
+        uuid actor_account_id FK "nullable"
+        uuid order_id FK "nullable"
+        varchar role
+        varchar action
+        varchar business_id  "nullable"
+        json details
+    }
+    INVITATION {
+        bigint id PK
+        uuid created_by_id FK "nullable"
+        varchar role
+        varchar token_hash UK
+        varchar email
+        datetime expires
+        boolean used
+    }
+    CAMPAIGN {
+        uuid id PK
+        varchar business_id FK "nullable"
+        varchar name
+        varchar source
+        varchar slug
+        decimal cost
+        varchar status
+        datetime created
+    }
+    PLATFORM_TASK {
+        uuid id PK
+        varchar title
+        varchar status
+        datetime created
+        datetime updated
+    }
+    VISIT {
+        bigint id PK
+        varchar business_id FK
+        varchar source
+        datetime created
+    }
+    SESSION_LINK {
+        bigint id PK
+        uuid user_id FK
+        varchar session_key UK
+        datetime created
+        datetime expires
+    }
+    RATE_BUCKET {
+        varchar key PK
+        int count
+        datetime expires
+    }

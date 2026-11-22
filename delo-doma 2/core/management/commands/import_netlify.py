@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from core.models import (AuditLog, Business, Campaign, Consumption, KnowledgeDocument, Order,
-                         PlatformTask, Product, RecipeLine, StockItem, StockMovement, User, Visit)
+                         PlatformTask, Product, RecipeLine, StockItem, StockMovement, Account, Visit)
 from core.security import seal
 
 def date(value):
@@ -22,7 +22,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, source, **options):
-        if User.objects.exists() or Business.objects.exists():
+        if Account.objects.exists() or Business.objects.exists():
             raise CommandError('Импорт разрешён только в пустую базу. Текущие данные не перезаписываются.')
         roots = list((source / 'blobs' / 'entries').glob('*/site:*'))
         roots = [p for p in roots if (p / 'business').exists()]
@@ -46,7 +46,7 @@ class Command(BaseCommand):
         users = {}
         for p in entries('profiles'):
             role = p.get('role', 'business')
-            u = User(id=p['id'], email=p.get('email') or p['id'] + '@import.local',
+            u = Account(id=p['id'], email=p.get('email') or p['id'] + '@import.local',
                      username=p.get('email') or p['id'], name=p.get('name', 'Владелец'), role=role,
                      platform_active=role == 'manager' and members.get(p['id'], {}).get('active', False),
                      is_active=not p.get('disabled', False), is_staff=role == 'admin', is_superuser=role == 'admin',
@@ -63,7 +63,7 @@ class Command(BaseCommand):
         for old in entries('business'):
             owner = users.get(old['owner'])
             if not owner:
-                owner = User(id=old['owner'], username=old['owner'], email=old['owner'] + '@import.local', name='Владелец')
+                owner = Account(id=old['owner'], username=old['owner'], email=old['owner'] + '@import.local', name='Владелец')
                 owner.set_unusable_password()
                 owner.save()
                 users[str(owner.pk)] = owner
@@ -74,7 +74,7 @@ class Command(BaseCommand):
                 ai_external_consent=old.get('aiExternalConsent', False), status=old.get('status', 'active'))
             Business.objects.filter(pk=b.pk).update(created=date(old['created']), updated=date(old.get('updated') or old['created']))
             for p in old.get('products', []):
-                Product.objects.create(business=b, name=p['name'], price=p['price'], description=p.get('description', ''),
+                Product.objects.create(catalogue=b.default_catalogue(), name=p['name'], price=p['price'], description=p.get('description', ''),
                                        category=p.get('category', ''), lead_hours=p.get('leadHours', 0))
             businesses[b.pk] = b
 
@@ -82,7 +82,7 @@ class Command(BaseCommand):
             b = businesses[old['business']]
             payload = decrypt(old['data'], 'order:' + b.pk)
             o = Order.objects.create(id=old['id'].split('.')[0], business=b, token_hash=old.get('tokenHash', ''),
-                status=old['status'], due=date(old['due']), channel=old.get('channel', 'direct'), campaign=old.get('campaign', ''),
+                total=payload.get('total', 0), status=old['status'], due=date(old['due']), channel=old.get('channel', 'direct'), campaign=old.get('campaign', ''),
                 consents=old.get('consents', {}), anonymized=date(old.get('anonymized')),
                 encrypted_data=seal(payload, 'order:' + b.pk))
             Order.objects.filter(pk=o.pk).update(created=date(old['created']), updated=date(old.get('updated') or old['created']))

@@ -1,3 +1,8 @@
+> Current schema and roles: see [ERD documentation](../docs/erd/README.md).
+> This version uses separate guest `User` and authenticated `Account` models and requires a fresh test database.
+> The active application is this directory, as configured by the repository-root `render.yaml`.
+> The nested `delo-doma 2/` directory is a historical copy, not the deployment source.
+
 # Delo Doma
 
 Web platform for micro and small businesses: business storefronts, catalogues, customer orders, private order tracking, reference-file uploads, inventory, and platform administration and analytics.

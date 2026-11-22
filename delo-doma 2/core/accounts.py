@@ -7,7 +7,7 @@ from django.contrib.sessions.models import Session
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
-from .models import Invitation, SessionLink, User
+from .models import Invitation, SessionLink, Account
 from .security import audit, clean, digest, fail, rate_limit, user_data
 
 def start_session(request, user):
@@ -32,7 +32,7 @@ def auth_route(request, v):
     if action == 'signup':
         if v.get('termsAccepted') is not True:
             fail('Подтвердите ознакомление с условиями и хранением данных.')
-        if User.objects.filter(email=email).exists():
+        if Account.objects.filter(email=email).exists():
             fail('Этот email уже зарегистрирован. Войдите в аккаунт.', 409)
         try:
             with transaction.atomic():
@@ -41,7 +41,7 @@ def auth_route(request, v):
                     invitation = Invitation.objects.select_for_update().filter(token_hash=digest(v['invite']), email=email, used=False, expires__gt=timezone.now()).first()
                     if not invitation:
                         fail('Приглашение недействительно или истекло.', 403)
-                user = User(email=email, username=email, name=clean(v.get('name'), 100) or email.split('@')[0],
+                user = Account(email=email, username=email, name=clean(v.get('name'), 100) or email.split('@')[0],
                             role='manager' if invitation else 'business', platform_active=bool(invitation),
                             terms={'version': '2026-10-21', 'acceptedAt': int(timezone.now().timestamp() * 1000)})
                 try:

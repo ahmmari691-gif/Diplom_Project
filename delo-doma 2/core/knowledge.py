@@ -129,8 +129,8 @@ def catalog_candidates(headers, rows):
                 continue
     return list(found.values())[:100]
 
-def knowledge_route(request, v):
-    b = owned_business(request)
+def knowledge_route(request, v, business=None):
+    b = business or owned_business(request)
     if request.method == 'GET' and not request.GET.get('id'):
         return {'documents': [document_meta(d) for d in b.documents.order_by('-created')]}
     if request.method == 'POST' and v.get('action') == 'upload':
@@ -147,10 +147,10 @@ def knowledge_route(request, v):
         name = clean(v.get('name'), 140)
         parsed = parse_knowledge(name, raw)
         with transaction.atomic():
-            b = owned_business(request, lock=True)
+            b = type(b).objects.select_for_update().get(pk=b.pk) if business else owned_business(request, lock=True)
             if b.documents.count() >= 10:
                 fail('Не больше 10 файлов на бизнес.')
-            d = KnowledgeDocument.objects.create(business=b, name=name, row_count=len(parsed['rows']),
+            d = KnowledgeDocument.objects.create(business=b, uploaded_by=request.user, name=name, row_count=len(parsed['rows']),
                 columns=parsed['headers'], file_type=parsed['type'], formula_count=parsed['formulaCount'],
                 ignored_columns=parsed['ignoredColumns'], encrypted_payload=seal(parsed, 'knowledge:' + b.pk))
             audit(request.user, 'knowledge.uploaded', b, {'document': str(d.pk), 'rows': d.row_count})
@@ -174,6 +174,7 @@ def knowledge_route(request, v):
             fail('Подтвердите проверку и выберите допустимые столбцы.')
         # Keep original sanitized rows encrypted for later review; retrieval uses selection only.
         d.selected_columns, d.columns, d.status, d.activated = columns, columns, 'active', timezone.now()
+        d.reviewed_by, d.reviewed_at = request.user, timezone.now()
         d.save()
         audit(request.user, 'knowledge.activated', b, {'document': str(d.pk)})
         return document_meta(d)
@@ -181,11 +182,11 @@ def knowledge_route(request, v):
         if v.get('confirmed') is not True or not parsed['candidates']:
             fail('Проверьте и подтвердите товары с ценами.')
         with transaction.atomic():
-            b = owned_business(request, lock=True)
+            b = type(b).objects.select_for_update().get(pk=b.pk) if business else owned_business(request, lock=True)
             if len(set(b.products.values_list('name', flat=True)) | {p['name'] for p in parsed['candidates']}) > 100:
                 fail('В каталоге может быть не больше 100 товаров.')
             for p in parsed['candidates']:
-                Product.objects.update_or_create(business=b, name=p['name'], defaults={'price': p['price'], 'description': p['description']})
+                Product.objects.update_or_create(catalogue=b.default_catalogue(), name=p['name'], defaults={'price': p['price'], 'description': p['description']})
             audit(request.user, 'catalog.imported', b, {'document': str(d.pk)})
         return {'products': [product_data(p) for p in b.products.all()]}
     fail('Неизвестное действие.')

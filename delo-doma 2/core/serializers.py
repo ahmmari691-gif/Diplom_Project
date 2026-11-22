@@ -10,7 +10,8 @@ def business_data(b, public=False):
               'currency': b.currency, 'check': float(b.average_check), 'pickupArea': b.pickup_area,
               'leadHours': b.lead_hours, 'dailyCapacity': b.daily_capacity, 'status': b.status,
               'created': ms(b.created), 'updated': ms(b.updated),
-              'products': [product_data(p) for p in b.products.all()]}
+              'orderingConditions': b.ordering_conditions, 'contactPhone': b.contact_phone, 'language': b.language,
+              'products': [product_data(p) for p in (b.products.filter(is_available=True, catalogue__is_published=True) if public else b.products.all())]}
     result.update(businessType=b.business_type, experience=experience(b))
     if public:
         result['disclaimer'] = SELLER_NOTICE
@@ -19,7 +20,7 @@ def business_data(b, public=False):
     return result
 
 def order_reference(o):
-    return str(o.pk) + '.' + o.business_id
+    return o.reference
 
 def order_payload(o):
     return unseal(o.encrypted_data, 'order:' + o.business_id)

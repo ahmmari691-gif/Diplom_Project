@@ -48,7 +48,7 @@ The system defines four user classes.
 |---|---|
 | Customer | Browses public catalogues, submits orders, and tracks requests using private links. |
 | Business Owner | Manages business information, products, reference files, and orders belonging to their business. |
-| Platform Administrator | Manages platform access, manager invitations, and business availability. |
+| Platform Administrator | Accesses platform statistics, campaigns and tasks; maintains business profiles/documents, suspends/resumes businesses, invites/revokes managers, and reads platform audit events. |
 | Platform Manager | Accesses aggregate statistics, campaigns, and tasks within assigned permissions. |
 
 Role-based permissions are enforced by the backend.
@@ -56,6 +56,17 @@ Role-based permissions are enforced by the backend.
 Business owners cannot access protected orders belonging to other businesses. Platform-level permissions do not automatically grant access to private customer order contents.
 
 Customers do not need a staff account to browse catalogues or track individual orders.
+
+### Updated ERD and test database baseline
+
+The guest buyer (`core.User`) and authenticated owner/staff login (`core.Account`) are separate entities.
+Buyers and businesses are related **only through orders**: `User → Order ← Business`.
+The owner of a business is an `Account`, never the guest buyer.
+
+See [ERD, role permissions and reset instructions](docs/erd/README.md).
+This release intentionally replaces the initial migration for the approved disposable test database.
+It **requires an empty database** and must not be applied over the previous migration history.
+The startup guard rejects the old schema without deleting it.
 
 ## 4. Functional Requirements
 
@@ -523,7 +534,7 @@ GitHub Pages alone cannot run the Django backend.
 
 ### 13.2 Render Configuration
 
-The repository contains a `render.yaml` configuration for Docker-based deployment with PostgreSQL.
+The repository contains a `render.yaml` configuration for the existing Docker web service with external Supabase PostgreSQL. See [Supabase setup](docs/erd/README.md#supabase-on-the-existing-render-service).
 
 To configure an optional preview in Render:
 
@@ -533,7 +544,7 @@ To configure an optional preview in Render:
 4. Verify that the plan does not require payment.
 5. Configure private environment variables before deployment.
 
-The existing Blueprint is configured with a Docker web service and PostgreSQL database.
+The Blueprint configures the Docker web service. Set its secret DATABASE_URL to the Supabase Session pooler connection and DB_SCHEMA to app; it no longer provisions a Render PostgreSQL database.
 
 Free-tier restrictions, service availability, and database retention depend on Render's current service terms. The configuration was developed for a temporary preview rather than permanent production hosting.
 

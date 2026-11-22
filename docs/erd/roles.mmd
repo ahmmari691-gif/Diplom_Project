@@ -1,0 +1,13 @@
+flowchart LR
+  Customer["USER · покупатель без регистрации"] -->|оформляет и отслеживает| Order["ORDER · заказ"]
+  Owner["ACCOUNT · владелец бизнеса"] -->|управляет| Business["BUSINESS · клиент платформы"]
+  Business -->|получает и выполняет| Order
+  Owner -->|ведёт| Catalogue["CATALOGUE → PRODUCT"]
+  Owner -->|загружает и активирует| Docs["KNOWLEDGE_DOCUMENT"]
+  Manager["ACCOUNT.role = manager<br/>Менеджер платформы"] -->|просматривает / ведёт| Ops["Статистика · CAMPAIGN · PLATFORM_TASK"]
+  Admin["ACCOUNT.role = admin<br/>Администратор"] -->|все полномочия менеджера| Manager
+  Admin -->|редактирует / приостанавливает / возобновляет| Business
+  Admin -->|управляет документами| Docs
+  Admin -->|создаёт| Invite["INVITATION · приглашение менеджера"]
+  Admin -->|отзывает доступ| Staff["ACCOUNT · аккаунт менеджера"]
+  Admin -->|просматривает| Audit["AUDIT_LOG · журнал действий"]

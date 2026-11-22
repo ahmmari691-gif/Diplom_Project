@@ -5,7 +5,7 @@ from datetime import timedelta
 from django.db import transaction
 from django.utils import timezone
 from .accounts import revoke_sessions
-from .models import AuditLog, Business, Campaign, Invitation, KnowledgeDocument, Order, PlatformTask, SessionLink, User, Visit
+from .models import AuditLog, Business, Campaign, Invitation, KnowledgeDocument, Order, PlatformTask, SessionLink, Account, Visit
 from .orders import anonymize
 from .security import audit, clean, decimal, digest, fail, ms, owned_business, rate_limit, require_role
 from .serializers import audit_data, campaign_data, order_payload, task_data
@@ -18,18 +18,18 @@ def staff_route(request, v):
     user = require_role(request, 'admin')
     if request.method == 'GET':
         return {'members': [{'id': str(u.pk), 'name': u.name, 'email': u.email, 'role': 'manager',
-                             'active': u.platform_active, 'scope': 'platform'} for u in User.objects.filter(role='manager')]}
+                             'active': u.platform_active, 'scope': 'platform'} for u in Account.objects.filter(role='manager')]}
     if v.get('action') == 'invite':
         email = clean(v.get('email'), 254).lower()
         if not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', email):
             fail('Введите email сотрудника.')
         token = secrets.token_hex(32)
         expires = timezone.now() + timedelta(days=1)
-        Invitation.objects.create(token_hash=digest(token), email=email, expires=expires)
+        Invitation.objects.create(created_by=user, token_hash=digest(token), email=email, expires=expires)
         audit(user, 'platform.manager_invited', 'platform')
         return {'token': token, 'expires': ms(expires)}
     if v.get('action') == 'revoke':
-        target = next((u for u in User.objects.filter(role='manager') if str(u.pk) == v.get('id')), None)
+        target = next((u for u in Account.objects.filter(role='manager') if str(u.pk) == v.get('id')), None)
         if not target:
             fail('Сотрудник не найден.', 404)
         with transaction.atomic():
@@ -94,7 +94,7 @@ def platform_route(request, v):
             'sources': [{'name': k, 'count': n} for k, n in sources.items()],
             'campaigns': [campaign_data(c) for c in Campaign.objects.filter(business__isnull=True).order_by('-created')],
             'tasks': [task_data(t) for t in PlatformTask.objects.order_by('-created')],
-            'privacy': 'Только агрегаты площадки. Без имён, контактов, пожеланий, файлов и складов бизнесов.'}
+            'privacy': 'Здесь только агрегаты площадки. Менеджеру недоступны профили и документы отдельных бизнесов. Частные заказы и контакты покупателей недоступны.'}
 
 def admin_route(request, v):
     user = require_role(request, 'admin')
@@ -102,7 +102,7 @@ def admin_route(request, v):
         businesses = Business.objects.all()
         docs = KnowledgeDocument.objects
         return {'metrics': {'businesses': businesses.count(), 'active': businesses.filter(status='active').count(),
-                'managers': User.objects.filter(role='manager', platform_active=True).count(),
+                'managers': Account.objects.filter(role='manager', platform_active=True).count(),
                 'documents': docs.count(), 'pendingDocuments': docs.filter(status='review').count()},
                 'businesses': [{'id': b.pk, 'name': b.name, 'category': b.category, 'status': b.status,
                                 'created': ms(b.created), 'products': b.products.count(), 'documents': b.documents.count()} for b in businesses],
@@ -196,3 +196,52 @@ def events_route(request, v):
         fail('Бизнес не найден.', 404)
     Visit.objects.create(business=b, source=clean(v.get('channel'), 60) or 'direct')
     return {'recorded': True}
+
+
+def operations_route(request, v):
+    """Platform administrators maintain public business profiles, not customer orders."""
+    user = require_role(request, 'admin')
+    if request.method == 'GET':
+        return {'businesses': [{'id': b.pk, 'name': b.name, 'category': b.category,
+                'description': b.description, 'status': b.status,
+                'orderingConditions': b.ordering_conditions, 'contactPhone': b.contact_phone,
+                'language': b.language, 'documents': b.documents.count()}
+                for b in Business.objects.order_by('name')]}
+    if v.get('action') != 'update_business':
+        fail('Неизвестное действие.')
+    # Availability, ownership and AI consent are deliberately not editable here.
+    allowed = {'action', 'business', 'name', 'category', 'description', 'orderingConditions', 'contactPhone', 'language', 'businessLanguage'}
+    if set(v) - allowed:
+        fail('Изменение этих полей недоступно.', 403)
+    with transaction.atomic():
+        b = Business.objects.select_for_update().filter(pk=clean(v.get('business'), 32)).first()
+        if not b:
+            fail('Бизнес не найден.', 404)
+        name = clean(v.get('name', b.name), 120)
+        if not name:
+            fail('Укажите название бизнеса.')
+        b.name = name
+        for external, field, maximum in [('category', 'category', 100), ('description', 'description', 3000),
+                ('orderingConditions', 'ordering_conditions', 3000), ('contactPhone', 'contact_phone', 100)]:
+            if external in v:
+                setattr(b, field, clean(v[external], maximum))
+        if 'businessLanguage' in v:
+            if v['businessLanguage'] not in ('ru', 'kk', 'en'):
+                fail('Выберите язык ru, kk или en.')
+            b.language = v['businessLanguage']
+        b.save()
+        audit(user, 'platform.business_updated', b)
+    return {'ok': True}
+
+
+def platform_knowledge_route(request, v):
+    require_role(request, 'admin')
+    key = request.GET.get('business') if request.method == 'GET' else v.get('business')
+    b = Business.objects.filter(pk=clean(key, 32)).first()
+    if not b:
+        fail('Бизнес не найден.', 404)
+    # Import changes prices/products, so it remains an owner-only action.
+    if request.method == 'POST' and v.get('action') not in ('upload', 'activate', 'delete'):
+        fail('Действие недоступно сотруднику платформы.', 403)
+    from .knowledge import knowledge_route
+    return knowledge_route(request, v, business=b)
