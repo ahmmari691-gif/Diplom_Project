@@ -534,7 +534,7 @@ GitHub Pages alone cannot run the Django backend.
 
 ### 13.2 Render Configuration
 
-The repository contains a `render.yaml` configuration for Docker-based deployment with PostgreSQL.
+The repository contains a `render.yaml` configuration for the existing Docker web service with external Supabase PostgreSQL. See [Supabase setup](docs/erd/README.md#supabase-on-the-existing-render-service).
 
 To configure an optional preview in Render:
 
@@ -544,7 +544,7 @@ To configure an optional preview in Render:
 4. Verify that the plan does not require payment.
 5. Configure private environment variables before deployment.
 
-The existing Blueprint is configured with a Docker web service and PostgreSQL database.
+The Blueprint configures the Docker web service. Set its secret DATABASE_URL to the Supabase Session pooler connection and DB_SCHEMA to app; it no longer provisions a Render PostgreSQL database.
 
 Free-tier restrictions, service availability, and database retention depend on Render's current service terms. The configuration was developed for a temporary preview rather than permanent production hosting.
 

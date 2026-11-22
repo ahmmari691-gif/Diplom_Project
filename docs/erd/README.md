@@ -115,3 +115,23 @@ The nested historical copy is not changed and must not be used for this schema.
 
 To regenerate text sources: `python docs/erd/generate.py` from the repository root with Django dependencies available.
 To render the diagram with Graphviz: `dot -Tsvg docs/erd/delo-doma-erd.dot -o docs/erd/delo-doma-erd.svg` (or `-Tpng`).
+
+## Supabase on the existing Render service
+
+The intended deployment uses the existing `delo-doma` Render service, not a second web service.
+Set its Root Directory to `delo-doma 2`; the previously configured nested directory contains the old schema.
+Keep the Git branch `main` and automatic deployments enabled once this PR is merged and the database connection is configured.
+
+Supabase PostgreSQL is external to the Render Blueprint. `DATABASE_URL` is supplied securely in Render;
+`render.yaml` no longer provisions a Render database. Removing the definition does not migrate any data.
+Use the project's exact **Session pooler** host on port 5432 and the dedicated application login.
+Do not use the Supabase REST API URL or publishable API key as a database connection string.
+
+`DB_SCHEMA=app` keeps Django tables in a private schema rather than Supabase's exposed `public` schema.
+The application role owns `app`; public/anonymous/authenticated API roles are not granted access.
+The login role has no superuser, role-creation, database-creation or RLS-bypass permission.
+`DB_SSLMODE=require` enables encrypted PostgreSQL transport.
+Existing Django and data-encryption secrets must remain configured in Render and must never be committed.
+
+Provisioning and connection verification are separate from code configuration: startup runs the
+schema guard and Django migrations after a valid database connection is available.

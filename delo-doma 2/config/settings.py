@@ -2,6 +2,7 @@
 import base64
 import hashlib
 import os
+import re
 import secrets
 from pathlib import Path
 from urllib.parse import unquote, urlparse
@@ -94,6 +95,10 @@ if os.getenv('DATABASE_URL'):
                            'USER': unquote(db.username or ''), 'PASSWORD': unquote(db.password or ''),
                            'HOST': db.hostname, 'PORT': db.port or 5432, 'CONN_MAX_AGE': 60,
                            'OPTIONS': {'sslmode': os.getenv('DB_SSLMODE', 'require')}}
+    schema = os.getenv('DB_SCHEMA', 'public')
+    if not re.fullmatch(r'[a-z_][a-z0-9_]*', schema):
+        raise ImproperlyConfigured('DB_SCHEMA must be a simple PostgreSQL schema name.')
+    DATABASES['default']['OPTIONS']['options'] = '-c search_path=' + schema
 AUTH_USER_MODEL = 'core.Account'
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
